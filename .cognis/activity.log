@@ -36,3 +36,4 @@
 2025-10-24T13:23:13  docs: clarify usage notes
 2026-02-14T08:40:20  test: add edge case
 2026-03-12T15:57:27  refactor: tidy internals
+2024-06-14T17:53:43  feat(scoring): add a fast path for the common case
