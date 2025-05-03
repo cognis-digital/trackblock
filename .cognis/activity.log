@@ -54,3 +54,4 @@
 2025-03-16T14:08:28  feat: with great power comes great test coverage
 2025-04-07T09:25:35  feat(deps): add a dry-run flag
 2025-04-11T16:42:42  docs(scoring): add a fast path for the common case
+2025-05-03T11:59:49  test(engine): add a regression fixture
