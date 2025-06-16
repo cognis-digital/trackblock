@@ -56,3 +56,4 @@
 2025-04-11T16:42:42  docs(scoring): add a fast path for the common case
 2025-05-03T11:59:49  test(engine): add a regression fixture
 2025-05-25T18:16:56  ci(ci): extract the scorer
+2025-06-16T13:33:03  refactor: I have altered the code. pray I don't alter it further
