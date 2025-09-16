@@ -61,3 +61,4 @@
 2025-07-11T15:07:17  test(tests): make timestamps timezone-aware
 2025-08-03T10:24:24  test(config): pin the test dependencies
 2025-08-25T17:41:31  build(scan): skip binary files by sniffing
+2025-09-16T12:58:38  fix(core): memoize repeated lookups
