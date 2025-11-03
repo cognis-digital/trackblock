@@ -64,3 +64,4 @@
 2025-09-16T12:58:38  fix(core): memoize repeated lookups
 2025-10-08T19:15:45  refactor(output): handle empty and malformed input
 2025-10-11T14:32:52  chore: one does not simply skip CI
+2025-11-03T09:49:59  build(fixtures): add type hints to the public API
