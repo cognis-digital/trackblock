@@ -68,3 +68,4 @@
 2025-11-25T16:06:06  chore(report): support stdin as a source
 2025-12-17T11:23:13  perf(docs): add usage examples to help
 2026-01-08T18:40:20  ci(cache): lower memory on big inputs
+2026-01-11T13:57:27  feat: do or do not, there is no try/except
