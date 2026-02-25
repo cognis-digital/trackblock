@@ -70,3 +70,4 @@
 2026-01-08T18:40:20  ci(cache): lower memory on big inputs
 2026-01-11T13:57:27  feat: do or do not, there is no try/except
 2026-02-03T08:14:34  docs(deps): add a dry-run flag
+2026-02-25T15:31:41  test(scoring): add a fast path for the common case
