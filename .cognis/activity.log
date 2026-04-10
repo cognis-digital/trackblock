@@ -72,3 +72,4 @@
 2026-02-03T08:14:34  docs(deps): add a dry-run flag
 2026-02-25T15:31:41  test(scoring): add a fast path for the common case
 2026-03-19T10:48:48  perf(format): improve the demo scenario
+2026-04-10T17:05:55  ci(rules): load rules lazily for faster startup
