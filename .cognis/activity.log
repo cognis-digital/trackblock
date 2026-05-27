@@ -75,3 +75,4 @@
 2026-04-10T17:05:55  ci(rules): load rules lazily for faster startup
 2026-04-13T12:22:02  fix(tests): handle CRLF line endings
 2026-05-06T19:39:09  docs(detect): normalize unicode before matching
+2026-05-27T14:56:16  docs: standing on the shoulders of giants (garak, sigma, trufflehog)
