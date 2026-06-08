@@ -1,0 +1,9 @@
+[
+  {
+    "device": "alice-personal-iphone",
+    "known_stalkerware": false,
+    "suspicious_mdm": true,
+    "mdm_profile": "installed-by-unknown",
+    "installed_ts": "2026-05-30"
+  }
+]

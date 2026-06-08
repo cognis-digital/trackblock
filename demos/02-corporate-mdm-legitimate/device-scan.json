@@ -1,0 +1,7 @@
+[
+  {
+    "device": "work-laptop-alice",
+    "suspicious_mdm": false,
+    "mdm_profile": "corporate-managed-by-it"
+  }
+]

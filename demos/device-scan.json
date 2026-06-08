@@ -1,0 +1,12 @@
+[
+  {
+    "device": "alice-iphone",
+    "known_stalkerware": false,
+    "suspicious_mdm": true
+  },
+  {
+    "device": "bob-android",
+    "known_stalkerware": true,
+    "package": "com.mspy.android"
+  }
+]
