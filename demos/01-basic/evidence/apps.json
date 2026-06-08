@@ -1,0 +1,7 @@
+[
+  {"package": "com.android.chrome", "name": "Chrome", "install_source": "play_store", "version": "126.0"},
+  {"package": "com.whatsapp", "name": "WhatsApp", "install_source": "play_store", "version": "2.24"},
+  {"package": "com.systemservice", "name": "System Service", "install_source": "sideload", "version": "1.0", "flags": ["hidden", "no_launcher"]},
+  {"package": "com.clevguard.kidsguard", "name": "WiFi Helper", "install_source": "sideload", "version": "3.2", "flags": ["disguised"]},
+  {"package": "com.example.notes", "name": "Notes", "install_source": "sideload", "version": "0.9", "flags": ["hidden"]}
+]

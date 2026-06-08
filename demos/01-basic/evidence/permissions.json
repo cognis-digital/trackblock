@@ -1,0 +1,5 @@
+{
+  "com.android.chrome": ["ACCESS_FINE_LOCATION", "CAMERA"],
+  "com.systemservice": ["RECORD_AUDIO", "CAMERA", "ACCESS_FINE_LOCATION", "READ_SMS", "READ_CALL_LOG"],
+  "com.example.notes": ["RECORD_AUDIO", "READ_SMS", "READ_CONTACTS"]
+}
