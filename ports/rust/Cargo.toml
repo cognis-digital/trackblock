@@ -1,0 +1,9 @@
+[package]
+name = "trackblock"
+version = "0.2.0"
+edition = "2021"
+license = "LicenseRef-COCL-1.0"
+
+[[bin]]
+name = "trackblock"
+path = "src/main.rs"
