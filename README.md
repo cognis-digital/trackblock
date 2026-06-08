@@ -36,7 +36,9 @@ Family phone stalkerware audit — MVT-class iOS/Android forensics — without s
 <a name="features"></a>
 ## Features
 
-- ✅ Scan
+- ✅ Load Evidence
+- ✅ Audit Records
+- ✅ Audit Directory
 - ✅ Runs on Linux/macOS/Windows · Docker · devcontainer
 - ✅ Ports in Python, JavaScript, Go, and Rust (`ports/`)
 
