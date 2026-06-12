@@ -16,7 +16,7 @@
 </div>
 
 ```bash
-pip install cognis-trackblock
+pip install "git+https://github.com/cognis-digital/trackblock.git"
 trackblock scan .            # → prioritized findings in seconds
 ```
 
@@ -48,7 +48,7 @@ Family phone stalkerware audit — MVT-class iOS/Android forensics — without s
 ## Quick start
 
 ```bash
-pip install cognis-trackblock
+pip install "git+https://github.com/cognis-digital/trackblock.git"
 trackblock --version
 trackblock scan .                       # scan current project
 trackblock scan . --format json         # machine-readable
