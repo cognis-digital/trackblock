@@ -20,6 +20,12 @@ pip install "git+https://github.com/cognis-digital/trackblock.git"
 trackblock scan .            # → prioritized findings in seconds
 ```
 
+<!-- cognis:layman:start -->
+## What is this?
+
+Trackblock is a free tool that checks a phone's offline data backup for hidden spy or stalkerware apps — the kind a controlling partner, employer, or stranger might secretly install to track your location, read your messages, or listen in. You run it by pointing it at an exported copy of the phone's data (no need to connect the actual phone), and within seconds it tells you whether suspicious apps, processes, or configuration changes were found. It is designed for anyone who suspects their device may be compromised, as well as IT teams and privacy advocates who help others check their devices.
+<!-- cognis:layman:end -->
+
 ## Contents
 
 - [Why trackblock?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
@@ -45,6 +51,42 @@ Family phone stalkerware audit — MVT-class iOS/Android forensics — without s
 <div align="right"><a href="#top">↑ back to top</a></div>
 
 <a name="quick-start"></a>
+<!-- cognis:install:start -->
+## Install
+
+`trackblock` is source-available (not published to PyPI) — every method below installs
+straight from GitHub. Pick whichever you prefer; the one-line scripts auto-detect
+the best tool available on your machine.
+
+**One-liner (Linux / macOS):**
+```sh
+curl -fsSL https://raw.githubusercontent.com/cognis-digital/trackblock/HEAD/install.sh | sh
+```
+
+**One-liner (Windows PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/cognis-digital/trackblock/HEAD/install.ps1 | iex
+```
+
+**Or install manually — any one of:**
+```sh
+pipx install "git+https://github.com/cognis-digital/trackblock.git"     # isolated (recommended)
+uv tool install "git+https://github.com/cognis-digital/trackblock.git"  # uv
+pip install "git+https://github.com/cognis-digital/trackblock.git"      # pip
+```
+
+**From source:**
+```sh
+git clone https://github.com/cognis-digital/trackblock.git
+cd trackblock && pip install .
+```
+
+Then run:
+```sh
+trackblock --help
+```
+<!-- cognis:install:end -->
+
 ## Quick start
 
 ```bash
