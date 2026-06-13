@@ -20,6 +20,29 @@ pip install cognis-trackblock
 trackblock scan .            # → prioritized findings in seconds
 ```
 
+## Usage — step by step
+
+1. **Install** the CLI (console script `trackblock`):
+   ```bash
+   pip install cognis-trackblock
+   ```
+2. **Audit an evidence directory** — point `audit` at an extracted (offline) phone evidence dump; it scans for stalkerware IOCs and prints a verdict + risk score:
+   ```bash
+   trackblock audit ./evidence_dump
+   ```
+3. **Emit JSON** for archival or downstream tooling:
+   ```bash
+   trackblock audit ./evidence_dump --format json > report.json
+   ```
+4. **Read the result** — the report carries `verdict` (`clean`/`review`/`suspicious`/`compromised`), `risk_score` (0–100) and a sorted `detections` list; the command exits `0` only when the verdict is `clean` (`1` otherwise, `2` on a bad evidence dir):
+   ```bash
+   trackblock audit ./evidence_dump --format json | jq '.verdict, .risk_score'
+   ```
+5. **Automate as a gate** — run it in a scheduled audit and act on the exit code:
+   ```bash
+   trackblock audit ./evidence_dump || echo "device NOT clean — investigate"
+   ```
+
 ## Contents
 
 - [Why trackblock?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
