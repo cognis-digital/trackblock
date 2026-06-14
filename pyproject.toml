@@ -36,3 +36,6 @@ trackblock = "trackblock.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["trackblock"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
