@@ -66,6 +66,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         except EvidenceError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
+        except KeyboardInterrupt:
+            print("interrupted", file=sys.stderr)
+            return 130
+        except Exception as exc:  # noqa: BLE001
+            print(f"unexpected error: {exc}", file=sys.stderr)
+            return 2
 
         if args.format == "json":
             print(json.dumps(report.to_dict(), indent=2))

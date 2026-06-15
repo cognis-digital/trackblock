@@ -182,6 +182,9 @@ def load_evidence(evidence_dir: str) -> Dict[str, Any]:
 def _match_indicators(platform: str, kind: str, artifact: str,
                       detail: str) -> List[Detection]:
     hits: List[Detection] = []
+    # Guard against None / non-string values that survive upstream coercion.
+    artifact = artifact if isinstance(artifact, str) else str(artifact or "")
+    detail = detail if isinstance(detail, str) else str(detail or "")
     hay = artifact.lower()
     for ind in INDICATORS:
         if ind.kind != kind:
@@ -194,9 +197,48 @@ def _match_indicators(platform: str, kind: str, artifact: str,
     return hits
 
 
+def _safe_list(value: Any, artifact_name: str) -> List[Any]:
+    """Return *value* as a list, raising EvidenceError if it is non-iterable
+    in an unexpected way (e.g. the JSON file contained an object instead of
+    an array).  A falsy value (None / empty) becomes an empty list.
+    """
+    if not value:
+        return []
+    if not isinstance(value, list):
+        raise EvidenceError(
+            f"expected a JSON array for '{artifact_name}', "
+            f"got {type(value).__name__}"
+        )
+    return value
+
+
+def _safe_dict(value: Any, artifact_name: str) -> Dict[str, Any]:
+    """Return *value* as a dict, raising EvidenceError if the wrong type."""
+    if not value:
+        return {}
+    if not isinstance(value, dict):
+        raise EvidenceError(
+            f"expected a JSON object for '{artifact_name}', "
+            f"got {type(value).__name__}"
+        )
+    return value
+
+
+def _safe_flags(raw: Any) -> List[str]:
+    """Coerce an app's 'flags' field to a list of lowercase strings.
+
+    Tolerates None, missing keys, or non-list values (treats them as empty).
+    """
+    if not raw or not isinstance(raw, list):
+        return []
+    return [str(f).lower() for f in raw]
+
+
 def audit_records(records: Dict[str, Any]) -> AuditReport:
     """Run the full detection pipeline over already-loaded evidence."""
     manifest = records.get("manifest") or {}
+    if not isinstance(manifest, dict):
+        manifest = {}
     platform = str(manifest.get("platform", "unknown")).lower()
     device = str(manifest.get("device", "unknown"))
 
@@ -204,14 +246,17 @@ def audit_records(records: Dict[str, Any]) -> AuditReport:
                          artifacts_loaded=list(records.get("_loaded", [])))
 
     # 1) Installed application packages.
-    for app in records.get("apps", []) or []:
-        pkg = str(app.get("package", ""))
-        name = str(app.get("name", pkg))
+    apps = _safe_list(records.get("apps"), "apps")
+    for app in apps:
+        if not isinstance(app, dict):
+            continue  # skip malformed entries silently
+        pkg = str(app.get("package") or "")
+        name = str(app.get("name") or pkg)
         report.detections.extend(
             _match_indicators(platform, "package", pkg, f"app '{name}'"))
 
-        flags = [str(f).lower() for f in app.get("flags", [])]
-        src = str(app.get("install_source", "")).lower()
+        flags = _safe_flags(app.get("flags"))
+        src = str(app.get("install_source") or "").lower()
         hidden = any(f in HIDDEN_FLAGS for f in flags)
         non_store = src not in ("", "app_store", "play_store", "system")
         if hidden and non_store:
@@ -221,17 +266,21 @@ def audit_records(records: Dict[str, Any]) -> AuditReport:
                                   f"hidden sideloaded app '{name}' ({pkg})"))
 
     # 2) Processes / daemons.
-    for proc in records.get("processes", []) or []:
-        pname = str(proc.get("name", ""))
-        ppath = str(proc.get("path", pname))
+    for proc in _safe_list(records.get("processes"), "processes"):
+        if not isinstance(proc, dict):
+            continue
+        pname = str(proc.get("name") or "")
+        ppath = str(proc.get("path") or pname)
         report.detections.extend(
             _match_indicators(platform, "process", f"{pname} {ppath}",
                               f"process '{pname}'"))
 
     # 3) iOS configuration profiles.
-    for prof in records.get("profiles", []) or []:
-        ident = str(prof.get("identifier", ""))
-        pname = str(prof.get("name", ident))
+    for prof in _safe_list(records.get("profiles"), "profiles"):
+        if not isinstance(prof, dict):
+            continue
+        ident = str(prof.get("identifier") or "")
+        pname = str(prof.get("name") or ident)
         text = f"{ident} {pname}"
         if prof.get("removal_disallowed"):
             text += " supervision"
@@ -241,17 +290,20 @@ def audit_records(records: Dict[str, Any]) -> AuditReport:
 
     # 4) Permission-correlation: non-store/hidden apps holding surveillance
     #    permission clusters are escalated even without a named IOC match.
-    perms = records.get("permissions") or {}
-    app_index = {str(a.get("package", "")): a
-                 for a in (records.get("apps", []) or [])}
-    a11y = set(str(p) for p in (records.get("accessibility", []) or []))
-    admins = set(str(p) for p in (records.get("device_admins", []) or []))
+    perms = _safe_dict(records.get("permissions"), "permissions")
+    app_index = {str(a.get("package") or ""): a
+                 for a in apps if isinstance(a, dict)}
+    a11y = set(str(p) for p in
+               _safe_list(records.get("accessibility"), "accessibility"))
+    admins = set(str(p) for p in
+                 _safe_list(records.get("device_admins"), "device_admins"))
     for pkg, granted in perms.items():
-        gset = {str(g).upper() for g in (granted or [])}
+        granted_list = granted if isinstance(granted, list) else []
+        gset = {str(g).upper() for g in granted_list}
         surv = gset & SURVEILLANCE_PERMS
-        app = app_index.get(pkg, {})
-        src = str(app.get("install_source", "")).lower()
-        flags = [str(f).lower() for f in app.get("flags", [])]
+        app = app_index.get(str(pkg), {})
+        src = str(app.get("install_source") or "").lower()
+        flags = _safe_flags(app.get("flags"))
         risky_install = src not in ("app_store", "play_store", "system", "")
         empowered = pkg in a11y or pkg in admins
         if len(surv) >= 3 and (risky_install or empowered
