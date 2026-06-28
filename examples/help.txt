@@ -1,0 +1,16 @@
+$ trackblock-emit --help
+
+usage: trackblock [-h] [--version] [--format {table,json}] {audit} ...
+
+Family phone stalkerware audit (MVT-class forensics). Scans an offline
+evidence dump for spyware indicators.
+
+positional arguments:
+  {audit}
+    audit               audit an evidence directory for stalkerware
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  --format {table,json}
+                        output format (default: table)

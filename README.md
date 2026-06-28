@@ -20,6 +20,62 @@ pip install cognis-trackblock
 trackblock scan .            # → prioritized findings in seconds
 ```
 
+
+<!-- cognis:example:start -->
+## 🔎 Example output
+
+Real, reproducible output from the tool — runs offline:
+
+```console
+$ trackblock-emit --version
+trackblock 0.1.0
+```
+
+```console
+$ trackblock-emit --help
+usage: trackblock [-h] [--version] [--format {table,json}] {audit} ...
+
+Family phone stalkerware audit (MVT-class forensics). Scans an offline
+evidence dump for spyware indicators.
+
+positional arguments:
+  {audit}
+    audit               audit an evidence directory for stalkerware
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  --format {table,json}
+                        output format (default: table)
+```
+
+> Blocks above are real `trackblock` output — reproduce them from a clone.
+
+**Sample result format** _(illustrative values — run on your own data for real findings):_
+
+```
+{
+"findings": [
+    {
+        "id": "123456",
+        "title": "Suspicious Network Traffic",
+        "description": "Potential malicious activity detected on port 443.",
+        "created_at": "2023-02-15T14:30:00Z",
+        "updated_at": "2023-02-15T14:30:01Z"
+    },
+    {
+        "id": "789012",
+        "title": "Unusual File Access",
+        "description": "User accessed a file with suspicious permissions.",
+        "created_at": "2023-02-16T10:45:00Z",
+        "updated_at": "2023-02-16T10:45:01Z"
+    }
+]
+}
+```
+
+<!-- cognis:example:end -->
+
 ## Usage — step by step
 
 1. **Install** the CLI (console script `trackblock`):

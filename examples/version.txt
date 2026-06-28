@@ -1,0 +1,3 @@
+$ trackblock-emit --version
+
+trackblock 0.1.0
