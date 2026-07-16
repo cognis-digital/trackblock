@@ -25,10 +25,19 @@ raises EvidenceError so the CLI can exit non-zero.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
+
+
+#: Public tool identity. Defined here so the whole package (CLI, MCP server,
+#: ``trackblock`` namespace re-export) shares a single source of truth. The
+#: value is intentionally pinned and independent of the packaging version.
+TOOL_NAME = "trackblock"
+TOOL_VERSION = "0.1.0"
 
 
 class EvidenceError(Exception):
@@ -37,6 +46,22 @@ class EvidenceError(Exception):
 
 # Severity weights drive the overall risk score.
 SEVERITY_WEIGHT = {"info": 5, "low": 15, "medium": 30, "high": 60, "critical": 90}
+
+# Canonical severity ordering, most severe first. Used for sorting, filtering
+# (``--min-severity``) and mapping onto SARIF levels.
+SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+
+# Verdict ordering, least → most severe. Drives the ``--fail-on`` exit gate.
+VERDICT_ORDER = ("clean", "review", "suspicious", "compromised")
+
+# Map trackblock severities onto SARIF result levels.
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
 
 
 @dataclass(frozen=True)
@@ -86,6 +111,27 @@ INDICATORS: List[Indicator] = [
               "high", "iKeyMonitor keylogger package present."),
     Indicator("TB-0015", "Sideload", "android", "behavior", "sideloaded_surveillance",
               "medium", "Hidden app sideloaded outside an app store."),
+    Indicator("TB-0016", "XNSPY", "android", "package", "com.thumb.xnspy",
+              "critical", "XNSPY monitoring agent package present."),
+    Indicator("TB-0017", "Spyic", "android", "package", "com.spyic",
+              "high", "Spyic covert tracking package present."),
+    Indicator("TB-0018", "Cocospy", "android", "package", "com.cocospy",
+              "high", "Cocospy covert tracking package present."),
+    Indicator("TB-0019", "uMobix", "android", "package", "com.umobix",
+              "critical", "uMobix monitoring agent package present."),
+    Indicator("TB-0020", "MobileTracker", "android", "package",
+              "com.mobiletracker.free",
+              "high", "MobileTrackerFree covert tracking package present."),
+    Indicator("TB-0021", "Reptilicus", "android", "package", "net.androidhero",
+              "high", "Reptilicus / OneMonitar covert package present."),
+    Indicator("TB-0022", "SpyHuman", "android", "package", "com.spyhuman",
+              "high", "SpyHuman monitoring package present."),
+    Indicator("TB-0023", "Pegasus", "ios", "process", "com.apple.symptomsd-diag",
+              "critical", "Pegasus staging process masquerading as a system daemon."),
+    Indicator("TB-0024", "Predator", "ios", "process", "com.cytrox.predator",
+              "critical", "Cytrox Predator implant process artifact."),
+    Indicator("TB-0025", "Generic", "any", "package", "com.trackview",
+              "medium", "TrackView remote-viewing app present."),
 ]
 
 # Permission combinations that strongly suggest covert surveillance when held
@@ -149,6 +195,97 @@ class AuditReport:
             "detection_count": len(self.detections),
             "detections": [d.to_dict() for d in self.detections],
         }
+
+    def sorted_detections(self) -> List["Detection"]:
+        """Detections ordered most-severe first (stable within a severity)."""
+        rank = {sev: i for i, sev in enumerate(SEVERITY_ORDER)}
+        return sorted(self.detections, key=lambda d: rank.get(d.severity, 99))
+
+    def to_sarif(self) -> Dict[str, Any]:
+        """Render the report as a SARIF 2.1.0 log.
+
+        Each unique indicator becomes a ``rule`` and each detection a
+        ``result``, so the output drops straight into GitHub code-scanning or
+        any SARIF-aware viewer. The device/platform and overall verdict are
+        preserved as run-level properties.
+        """
+        rules: List[Dict[str, Any]] = []
+        seen: set = set()
+        results: List[Dict[str, Any]] = []
+        for d in self.sorted_detections():
+            if d.ioc_id not in seen:
+                seen.add(d.ioc_id)
+                rules.append({
+                    "id": d.ioc_id,
+                    "name": d.family,
+                    "shortDescription": {"text": f"{d.family} indicator"},
+                    "properties": {"severity": d.severity, "kind": d.kind},
+                })
+            results.append({
+                "ruleId": d.ioc_id,
+                "level": _SARIF_LEVEL.get(d.severity, "warning"),
+                "message": {"text": d.detail},
+                "properties": {
+                    "family": d.family,
+                    "severity": d.severity,
+                    "kind": d.kind,
+                    "artifact": d.artifact,
+                },
+                "locations": [{
+                    "logicalLocations": [{
+                        "name": d.artifact,
+                        "kind": d.kind,
+                    }],
+                }],
+            })
+        return {
+            "version": "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "runs": [{
+                "tool": {"driver": {
+                    "name": TOOL_NAME,
+                    "version": TOOL_VERSION,
+                    "informationUri": "https://github.com/cognis-digital/trackblock",
+                    "rules": rules,
+                }},
+                "results": results,
+                "properties": {
+                    "platform": self.platform,
+                    "device": self.device,
+                    "verdict": self.verdict,
+                    "risk_score": self.risk_score,
+                    "artifacts_loaded": self.artifacts_loaded,
+                },
+            }],
+        }
+
+    def to_csv(self) -> str:
+        """Render the detections as CSV (one row per finding, header first)."""
+        buf = io.StringIO()
+        writer = csv.writer(buf, lineterminator="\n")
+        writer.writerow(["ioc_id", "severity", "family", "kind",
+                         "artifact", "detail"])
+        for d in self.sorted_detections():
+            writer.writerow([d.ioc_id, d.severity, d.family, d.kind,
+                             d.artifact, d.detail])
+        return buf.getvalue()
+
+    def filter_min_severity(self, min_severity: str) -> "AuditReport":
+        """Return a new report keeping only detections at/above a severity.
+
+        The returned report is re-finalized so ``risk_score`` and ``verdict``
+        reflect the filtered set. The original report is left untouched.
+        """
+        rank = {sev: i for i, sev in enumerate(SEVERITY_ORDER)}
+        if min_severity not in rank:
+            raise ValueError(f"unknown severity: {min_severity!r}")
+        threshold = rank[min_severity]
+        kept = [d for d in self.detections
+                if rank.get(d.severity, 99) <= threshold]
+        filtered = AuditReport(platform=self.platform, device=self.device,
+                               artifacts_loaded=list(self.artifacts_loaded),
+                               detections=kept)
+        return filtered.finalize()
 
 
 def _read_json(path: str) -> Any:
@@ -269,3 +406,26 @@ def audit_records(records: Dict[str, Any]) -> AuditReport:
 def audit_directory(evidence_dir: str) -> AuditReport:
     """Convenience: load an evidence directory and audit it."""
     return audit_records(load_evidence(evidence_dir))
+
+
+def scan(target: str) -> Dict[str, Any]:
+    """Audit an evidence directory and return the report as a plain dict.
+
+    This is the stable programmatic entry point used by embedders (the MCP
+    server, notebooks, other services). It never raises for detection
+    outcomes — only :class:`EvidenceError` for an unreadable evidence dir.
+    """
+    return audit_directory(target).to_dict()
+
+
+def iter_indicators(platform: str = "any") -> Iterable[Indicator]:
+    """Yield indicators applicable to ``platform`` ("any" yields all)."""
+    plat = platform.lower()
+    for ind in INDICATORS:
+        if plat == "any" or ind.platform in ("any", plat):
+            yield ind
+
+
+def indicators_as_dicts(platform: str = "any") -> List[Dict[str, Any]]:
+    """Return the indicator database (optionally platform-filtered) as dicts."""
+    return [asdict(ind) for ind in iter_indicators(platform)]

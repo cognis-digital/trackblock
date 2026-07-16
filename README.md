@@ -17,62 +17,41 @@
 
 ```bash
 pip install cognis-trackblock
-trackblock scan .            # → prioritized findings in seconds
+trackblock audit ./evidence_dump      # → verdict + prioritized findings in seconds
 ```
 
 
 <!-- cognis:example:start -->
 ## 🔎 Example output
 
-Real, reproducible output from the tool — runs offline:
+Real, reproducible output from the tool — runs 100% offline against the bundled
+demo evidence (`demos/01-basic/evidence`):
 
 ```console
-$ trackblock-emit --version
-trackblock 0.1.0
+$ trackblock audit demos/01-basic/evidence
+TRACKBLOCK audit -- android / Pixel 7 (family-shared)
+  artifacts: manifest.json, apps.json, accessibility.json, device_admins.json, permissions.json
+  verdict  : SUSPICIOUS  (risk score 100/100)
+  findings : 7
+
+  IOC       SEVERITY  FAMILY           DETAIL
+  --------- --------- ---------------- ------------------------------
+  TB-0007   high      TheTruthSpy      app 'System Service'
+  TB-0009   high      KidsGuard        app 'WiFi Helper'
+  TB-PERM   high      PermissionCluster 'com.systemservice' holds [...] + accessibility + device-admin
+  TB-0015   medium    Sideload         hidden sideloaded app 'System Service' (com.systemservice)
 ```
 
 ```console
-$ trackblock-emit --help
-usage: trackblock [-h] [--version] [--format {table,json}] {audit} ...
-
-Family phone stalkerware audit (MVT-class forensics). Scans an offline
-evidence dump for spyware indicators.
-
-positional arguments:
-  {audit}
-    audit               audit an evidence directory for stalkerware
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  --format {table,json}
-                        output format (default: table)
+$ trackblock audit demos/01-basic/evidence --format json | jq '.verdict, .risk_score, .detection_count'
+"suspicious"
+100
+7
 ```
 
 > Blocks above are real `trackblock` output — reproduce them from a clone.
-
-**Sample result format** _(illustrative values — run on your own data for real findings):_
-
-```
-{
-"findings": [
-    {
-        "id": "123456",
-        "title": "Suspicious Network Traffic",
-        "description": "Potential malicious activity detected on port 443.",
-        "created_at": "2023-02-15T14:30:00Z",
-        "updated_at": "2023-02-15T14:30:01Z"
-    },
-    {
-        "id": "789012",
-        "title": "Unusual File Access",
-        "description": "User accessed a file with suspicious permissions.",
-        "created_at": "2023-02-16T10:45:00Z",
-        "updated_at": "2023-02-16T10:45:01Z"
-    }
-]
-}
-```
+> The command exits non-zero when the device is not `clean`, so it doubles as a
+> CI / cron gate.
 
 <!-- cognis:example:end -->
 
@@ -115,9 +94,14 @@ Family phone stalkerware audit — MVT-class iOS/Android forensics — without s
 <a name="features"></a>
 ## Features
 
-- ✅ Load Evidence
-- ✅ Audit Records
-- ✅ Audit Directory
+- ✅ **Offline forensic audit** — works on an extracted evidence dump, never touches a live device (MVT-class methodology)
+- ✅ **Curated indicator database** — 25+ IOCs across documented commercial stalkerware/spyware families (packages, processes, iOS profiles, behaviors)
+- ✅ **Permission-cluster correlation** — flags sideloaded/hidden apps holding surveillance permission combos, escalated by accessibility / device-admin empowerment
+- ✅ **Risk scoring + verdict ladder** — `clean` → `review` → `suspicious` → `compromised`, with a 0–100 risk score
+- ✅ **Four output formats** — human `table`, `json`, **SARIF 2.1.0** (GitHub code-scanning), and `csv`
+- ✅ **Tunable exit gate** — `--fail-on` chooses the verdict that fails a pipeline; `--min-severity` filters noise
+- ✅ **`list-indicators`** — inspect the built-in IOC database (table/json/csv)
+- ✅ **Programmatic API** — `trackblock.core.scan(dir)` returns a plain dict for embedding
 - ✅ Runs on Linux/macOS/Windows · Docker · devcontainer
 - ✅ Ports in Python, JavaScript, Go, and Rust (`ports/`)
 
@@ -129,10 +113,15 @@ Family phone stalkerware audit — MVT-class iOS/Android forensics — without s
 ```bash
 pip install cognis-trackblock
 trackblock --version
-trackblock scan .                       # scan current project
-trackblock scan . --format json         # machine-readable
-trackblock scan . --fail-on high        # CI gate (non-zero exit)
+trackblock audit ./evidence_dump                        # human table
+trackblock scan  ./evidence_dump --format json          # 'scan' is an alias of 'audit'
+trackblock audit ./evidence_dump --format sarif > out.sarif   # GitHub code-scanning
+trackblock audit ./evidence_dump --fail-on compromised  # only fail CI on a confirmed compromise
+trackblock list-indicators --platform ios               # inspect the IOC database
 ```
+
+> `audit` / `scan` take a **directory of extracted evidence** (an offline dump),
+> not a live device. See [Usage](docs/USAGE.md) for the evidence layout.
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -140,11 +129,15 @@ trackblock scan . --fail-on high        # CI gate (non-zero exit)
 ## Example
 
 ```text
-$ trackblock scan .
-  [HIGH    ] TRA-001  example finding             (./src/app.py)
-  [MEDIUM  ] TRA-002  another signal              (./config.yaml)
+$ trackblock audit demos/01-basic/evidence
+TRACKBLOCK audit -- android / Pixel 7 (family-shared)
+  verdict  : SUSPICIOUS  (risk score 100/100)
+  findings : 7
 
-  2 findings · risk score 5 · 38ms
+  IOC       SEVERITY  FAMILY           DETAIL
+  TB-0007   high      TheTruthSpy      app 'System Service'
+  TB-PERM   high      PermissionCluster 'com.systemservice' holds [...] + accessibility + device-admin
+  TB-0015   medium    Sideload         hidden sideloaded app 'System Service'
 ```
 
 <div align="right"><a href="#top">↑ back to top</a></div>
@@ -152,10 +145,16 @@ $ trackblock scan .
 <a name="architecture"></a>
 ## Architecture
 
+Evidence artifacts are loaded from an offline dump, correlated against the
+curated indicator database and the permission-cluster heuristic, then scored
+into a verdict. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detail.
+
 ```mermaid
 flowchart LR
-  IN[disk / memory artifact] --> P[trackblock<br/>parse]
-  P --> OUT[timeline + IOCs]
+  IN[evidence dump<br/>apps · processes · profiles · permissions] --> L[load_evidence]
+  L --> C[audit_records<br/>IOC + permission correlation]
+  C --> S[finalize<br/>risk score + verdict]
+  S --> OUT[table · json · sarif · csv]
 ```
 
 <div align="right"><a href="#top">↑ back to top</a></div>
@@ -165,10 +164,10 @@ flowchart LR
 
 `trackblock` is interoperable with every popular way of using AI:
 
-- **MCP server** — `trackblock mcp` (Claude Desktop, Cursor, Cognis.Studio, [uncensored-fleet](https://github.com/cognis-digital/uncensored-fleet))
-- **OpenAI-compatible / JSON** — pipe `trackblock scan . --format json` into any agent or LLM
-- **LangChain · CrewAI · AutoGen · LlamaIndex** — wrap the CLI/JSON as a tool in one line
-- **CI / scripts** — exit codes + SARIF for non-AI pipelines
+- **JSON / SARIF** — pipe `trackblock audit <dir> --format json` (or `sarif`) into any agent, LLM, or code-scanning pipeline
+- **Programmatic API** — `from trackblock.core import scan; scan("evidence_dir")` returns a plain dict for tool-wrapping
+- **MCP** — an optional MCP server module (`trackblock.mcp_server`, extra `[mcp]`) exposes the same `scan` entry point to agent runtimes
+- **CI / scripts** — tunable exit codes (`--fail-on`) + SARIF for non-AI pipelines
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -191,7 +190,7 @@ flowchart LR
 <a name="integrations"></a>
 ## Integrations
 
-Pipes into your stack: **SARIF** for code-scanning, **JSON** for anything, an **MCP server** (`trackblock mcp`) for AI agents, and a webhook forwarder for SIEM/Slack/Jira. See [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+Pipes into your stack: **SARIF** for code-scanning, **JSON** / **CSV** for anything, an optional **MCP server** module (`trackblock.mcp_server`) for AI agents, and a `trackblock-emit` forwarder (STIX/MISP/Sigma/SIEM/Slack/Discord via `cognis-connect`). See [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 <div align="right"><a href="#top">↑ back to top</a></div>
 
@@ -227,6 +226,46 @@ curl -fsSL https://raw.githubusercontent.com/cognis-digital/trackblock/main/inst
 **Explore the suite →** [🗂️ all 170+ tools](https://github.com/cognis-digital/cognis-neural-suite) · [⭐ awesome-cognis](https://github.com/cognis-digital/awesome-cognis) · [🔗 cognis-sources](https://github.com/cognis-digital/cognis-sources) · [🤖 uncensored-fleet](https://github.com/cognis-digital/uncensored-fleet) · [🧠 engram](https://github.com/cognis-digital/engram)
 
 <div align="right"><a href="#top">↑ back to top</a></div>
+
+<a name="configuration"></a>
+## Configuration reference
+
+`trackblock` is configured entirely through CLI flags — no config files, no
+environment variables required.
+
+| Flag | Applies to | Values | Default | Effect |
+|---|---|---|---|---|
+| `--format` | all commands | `table`, `json`, `sarif`, `csv` | `table` | Output rendering. `sarif` emits SARIF 2.1.0 for code-scanning. |
+| `--min-severity` | `audit` / `scan` | `critical`, `high`, `medium`, `low`, `info` | *(keep all)* | Drop detections below this severity, then **re-score** the report. |
+| `--fail-on` | `audit` / `scan` | `clean`, `review`, `suspicious`, `compromised`, `never` | `review` | Lowest verdict that yields a non-zero exit. `review` reproduces the legacy "non-zero unless clean" behavior; `never` always exits 0. |
+| `--platform` | `list-indicators` | `any`, `ios`, `android` | `any` | Filter the indicator database. |
+
+**Exit codes:** `0` = verdict below the `--fail-on` threshold (pass) · `1` =
+verdict at/above threshold (findings) · `2` = evidence directory missing or an
+artifact was malformed.
+
+<a name="faq"></a>
+## FAQ
+
+**Does trackblock touch my phone directly?** No. It audits an *offline evidence
+dump* — JSON artifacts you extract from the device first — so the analysis is
+reproducible and never risks the live device.
+
+**What evidence does it read?** Any subset of `manifest.json`, `apps.json`,
+`processes.json`, `profiles.json` (iOS), `accessibility.json`,
+`device_admins.json`, `permissions.json`. Missing files are skipped; a malformed
+file is a hard error. See [docs/USAGE.md](docs/USAGE.md).
+
+**Will it catch spyware that isn't in the database?** The named-IOC set catches
+documented families; the **permission-cluster** heuristic catches *unnamed*
+apps that behave like surveillanceware (hidden/sideloaded + surveillance
+permissions + accessibility/device-admin). Contributions of new IOCs are welcome.
+
+**Can I gate CI on it?** Yes — use the exit code, and tune `--fail-on` to your
+tolerance. `--format sarif` uploads straight into GitHub code-scanning.
+
+**Is a match proof of stalkerware?** No. Treat findings as leads for a human
+reviewer. Some MDM profiles are legitimate (see the `demos/` scenarios).
 
 <a name="contributing"></a>
 ## Contributing
